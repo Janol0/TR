@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laberint: ordinador normal i ordinador quàntic</title>
+<meta name="description" content="El mateix laberint resolt per un ordinador normal (un camí cada vegada) i per un ordinador quàntic (tots els camins alhora).">
+<style>
+:root{--bg:#fbfaf7;--fg:#22211f;--mut:#5d5b55;--bd:#c9c6bb;--bt:#efede5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--fg:#f1efe8;--mut:#b4b2a9;--bd:#4a4945;--bt:#262624;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151514;--fg:#f1efe8;--mut:#b4b2a9;--bd:#4a4945;--bt:#262624;color-scheme:dark}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 28px}
+h1{font-size:22px;font-weight:600;margin:0 0 4px}
+.sub{color:var(--mut);margin:0 0 18px;font-size:15px}
+.r{display:flex;gap:14px}
+.c{flex:1;min-width:0}
+.h{font-weight:600}
+.s{font-size:13px;color:var(--mut);margin-bottom:8px}
+.n{font-size:14px;color:var(--mut);margin-top:8px;font-variant-numeric:tabular-nums}
+canvas{display:block;width:100%;height:auto;border-radius:8px;background:#0d0d0c;image-rendering:pixelated}
+.k{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}
+button{font:inherit;font-size:14px;padding:7px 14px;border:1px solid var(--bd);background:var(--bt);color:var(--fg);border-radius:8px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid #7F77DD;outline-offset:2px}
+.k label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--mut);flex:1;min-width:170px}
+.k input{flex:1}
+.f{font-size:13px;color:var(--mut);margin-top:16px}
+</style>
+</head>
+<body>
+<main>
+<h1>Laberint: ordinador normal i ordinador quàntic</h1>
+<p class="sub">El mateix laberint resolt de dues maneres.</p>
+<div class="r">
+<div class="c"><div class="h">Ordinador normal</div><div class="s">Un camí cada vegada</div><canvas id="a" width="330" height="330" aria-label="Laberint resolt per un ordinador normal"></canvas><div class="n" id="na">Passos: 0</div></div>
+<div class="c"><div class="h">Ordinador quàntic</div><div class="s">Tots els camins alhora</div><canvas id="b" width="330" height="330" aria-label="Laberint resolt per un ordinador quàntic"></canvas><div class="n" id="nb">Passos: 0</div></div>
+</div>
+<div class="k">
+<button id="pl">Pausa</button>
+<button id="rs">Reinicia</button>
+<button id="nw">Un altre laberint</button>
+<label>Velocitat<input type="range" id="sp" min="10" max="300" value="60"></label>
+</div>
+<p class="f">Visualització il·lustrativa: l’ordinador quàntic es representa explorant tots els camins alhora. A la pràctica, l’avantatge real depèn de l’algoritme.</p>
+</main>
+<script>
+const W=27,G=2*W+1,PX=6;
+const $=id=>document.getElementById(id);
+const ca=$('a').getContext('2d'),cb=$('b').getContext('2d');
+const D=[[1,0],[0,1],[-1,0],[0,-1]];
+const WL='#42413e',PT='#0d0d0c',DD='#A63F1E',PC='#F0997B',HD='#FAEEDA',EX='#534AB7',FR='#AFA9EC',SO='#EEEDFE';
+let seed=7,g,run=!matchMedia('(prefers-reduced-motion: reduce)').matches,acc=0,last=0,speed=60;
+let ds,dseen,dsteps,ddone,bf,bp,bseen,bpar,bsteps,bdone;
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function make(s){
+const r=rng(s),m=[];
+for(let y=0;y<G;y++)m.push(new Array(G).fill(1));
+const L=[[1,1]];m[1][1]=0;
+while(L.length){
+const i=r()<.5?L.length-1:Math.floor(r()*L.length),c=L[i],x=c[0],y=c[1],n=[];
+for(const d of [[2,0],[-2,0],[0,2],[0,-2]]){const nx=x+d[0],ny=y+d[1];if(nx>0&&ny>0&&nx<G-1&&ny<G-1&&m[ny][nx]===1)n.push([nx,ny,d[0],d[1]])}
+if(!n.length){L.splice(i,1);continue}
+const q=n[Math.floor(r()*n.length)];
+m[y+q[3]/2][x+q[2]/2]=0;m[q[1]][q[0]]=0;L.push([q[0],q[1]]);
+}
+return m;
+}
+function px(c,x,y,col){c.fillStyle=col;c.fillRect(x*PX,y*PX,PX,PX)}
+function marks(){for(const c of [ca,cb]){c.fillStyle='#F1EFE8';c.fillRect(PX-2,PX-2,10,10);c.fillStyle='#1D9E75';c.fillRect((G-2)*PX-2,(G-2)*PX-2,10,10)}}
+function lbl(){$('pl').textContent=(ddone&&bdone)?'Repeteix':run?'Pausa':'Continua'}
+function upd(){
+$('na').textContent=ddone?'Sortida trobada en '+dsteps+' passos':'Passos: '+dsteps;
+$('nb').textContent=bdone?'Sortida trobada en '+bsteps+' passos':'Passos: '+bsteps;
+lbl();
+}
+function init(){
+g=make(seed);
+for(const c of [ca,cb])for(let y=0;y<G;y++)for(let x=0;x<G;x++)px(c,x,y,g[y][x]?WL:PT);
+ds=[[1,1]];dseen=new Uint8Array(G*G);dseen[G+1]=1;dsteps=0;ddone=false;px(ca,1,1,HD);
+bf=[[1,1]];bp=[];bseen=new Uint8Array(G*G);bseen[G+1]=1;bpar=new Int32Array(G*G).fill(-1);bsteps=0;bdone=false;
+acc=0;marks();upd();
+}
+function stepD(){
+if(ddone)return;
+const t=ds[ds.length-1],x=t[0],y=t[1];
+let m=false;
+for(const d of D){
+const nx=x+d[0],ny=y+d[1];
+if(g[ny][nx]===0&&!dseen[ny*G+nx]){
+dseen[ny*G+nx]=1;px(ca,x,y,PC);ds.push([nx,ny]);px(ca,nx,ny,HD);m=true;
+if(nx===G-2&&ny===G-2)ddone=true;
+break;
+}
+}
+if(!m){px(ca,x,y,DD);ds.pop();const p=ds[ds.length-1];px(ca,p[0],p[1],HD)}
+dsteps++;
+}
+function stepB(){
+if(bdone)return;
+for(const c of bp)px(cb,c[0],c[1],EX);
+for(const c of bf)px(cb,c[0],c[1],FR);
+for(const c of bf){
+if(c[0]===G-2&&c[1]===G-2){
+bdone=true;
+let i=(G-2)*G+(G-2);
+while(i>=0){px(cb,i%G,Math.floor(i/G),SO);i=bpar[i]}
+return;
+}
+}
+const nx=[];
+for(const c of bf)for(const d of D){
+const a=c[0]+d[0],b=c[1]+d[1],k=b*G+a;
+if(g[b][a]===0&&!bseen[k]){bseen[k]=1;bpar[k]=c[1]*G+c[0];nx.push([a,b])}
+}
+bp=bf;bf=nx;bsteps++;
+}
+function frame(t){
+const dt=Math.min(.1,(t-last)/1000||0);last=t;
+if(run&&!(ddone&&bdone)){
+acc+=dt*speed;
+let k=Math.floor(acc);acc-=k;
+while(k-->0){stepD();stepB()}
+marks();upd();
+if(ddone&&bdone)run=false;
+lbl();
+}
+requestAnimationFrame(frame);
+}
+$('pl').onclick=()=>{if(ddone&&bdone){init();run=true}else run=!run;lbl()};
+$('rs').onclick=()=>{init();run=true;lbl()};
+$('nw').onclick=()=>{seed=Math.floor(Math.random()*1e6)+1;init();run=true;lbl()};
+$('sp').oninput=e=>{speed=+e.target.value};
+init();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
